@@ -1,0 +1,13 @@
+name: api_fleet_management
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pandas
+  - fastapi
+  - uvicorn
+  - pip
+  - pip:
+      - python-dotenv
+      - tqdm

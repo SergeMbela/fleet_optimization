@@ -1,0 +1,141 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# pytest
+.cache
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# pytype
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# Conda environment files (common practice is to NOT commit env)
+# Ignore conda environment directory if it’s local
+env/
+env.bak/
+venv/
+venv.bak/
+# Or your specific conda environment folder, e.g.
+anaconda3/
+miniconda3/
+
+# Conda environment YAML files (optional: include or ignore)
+# You might want to track your environment.yml file to recreate env
+# So do NOT ignore environment.yml or environment.yaml if you want to keep it
+# But ignore conda lock files if any
+conda-meta/
+conda-lock.yaml
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Conda environment folders
+env/
+venv/
+anaconda3/
+miniconda3/
+
+# Conda build directories pour CentOS 7 64 bits
+x86_64-conda_cos7-linux-gnu/
+# Conda build directories pour Ubuntu 20.04 64 bits
+x86_64-conda-linux-gnu/ 
+
+.env
+# Local environment variables file
+.env.local

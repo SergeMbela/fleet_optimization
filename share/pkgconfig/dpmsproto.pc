@@ -1,0 +1,7 @@
+prefix=/home/sergembela/anaconda3/envs/api_fleet_management
+includedir=${prefix}/include
+
+Name: DPMSProto
+Description: DPMS extension headers
+Version: 1.2
+Cflags: -I${includedir}

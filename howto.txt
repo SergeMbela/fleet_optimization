@@ -1,0 +1,4 @@
+uvicorn finances:app --reload --port 8002
+
+python -m uvicorn finances:app --reload --port 8002
+
