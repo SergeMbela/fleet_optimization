@@ -200,11 +200,17 @@ async def get_amortissements(format: str = "json"):
 
         else:
             logger.info("Returning JSON response")
+            # **Conversion des colonnes date en string ISO avant JSON**
+            if 'DateAmortissement' in df_amort.columns:
+                df_amort['DateAmortissement'] = df_amort['DateAmortissement'].apply(
+                    lambda x: x.isoformat() if pd.notnull(x) else None
+                )
             return JSONResponse(content=df_amort.to_dict(orient="records"))
 
     except Exception as e:
         logger.error(f"Error formatting the response: {e}")
         return JSONResponse(status_code=500, content={"error": f"Erreur format réponse : {str(e)}"})
+
 
 @app.get("/amortissements/errors")
 async def get_amortissement_errors(format: str = "json"):
