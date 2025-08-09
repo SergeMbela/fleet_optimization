@@ -1,4 +1,16 @@
 uvicorn finances:app --reload --port 8002
 
-python -m uvicorn finances:app --reload --port 8002
+
+
+http://127.0.0.1:8002/amortissements
+http://127.0.0.1:8002/amortissements?format=csv
+http://127.0.0.1:8002/amortissements?format=xlsx
+
+
+
+docker build -t fleet-api 
+
+docker run -p 8000:8000 fleet-api
+
+docker run -p 8000:8000 fleet-api
 

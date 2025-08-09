@@ -8,6 +8,7 @@ import pandas as pd
 from fastapi import FastAPI, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 import io
+import xlsxwriter
 from tqdm import tqdm
 
 # --- Setup logger ---
@@ -36,11 +37,11 @@ logger.addHandler(console_handler)
 # --- Load environment variables ---
 try:
     load_dotenv()
-    DB_DRIVER = os.getenv("DB_DRIVER", "ODBC Driver 18 for SQL Server")
-    DB_SERVER = os.getenv("DB_SERVER", "localhost,1433")
-    DB_NAME = os.getenv("DB_NAME", "fleet_management")
-    DB_USER = os.getenv("DB_USER", "sa")
-    DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+    DB_DRIVER =os.getenv("DB_DRIVER")
+    DB_SERVER =os.getenv("DB_SERVER")
+    DB_NAME = os.getenv("DB_NAME")
+    DB_USER = os.getenv("DB_USER")
+    DB_PASSWORD = os.getenv("DB_PASSWORD")
 except Exception as e:
     logger.critical(f"Error loading environment variables: {e}")
     raise
