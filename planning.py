@@ -1,5 +1,6 @@
 import os
 import uuid
+import random
 import logging
 from datetime import datetime, timedelta, date
 from urllib.parse import quote_plus
@@ -31,103 +32,140 @@ connection_string = (
 )
 engine = create_engine(connection_string, fast_executemany=True)
 
-
-def generate_sample_trajets():
-    """
-    Génère un DataFrame d’exemple de trajets avec des durées en minutes.
-    """
-    data = []
-    base_date = date(2025, 7, 23)
-    chauffeurs = [1, 2]
-    lieux = [("Amsterdam", "Bruxelles"), ("Rotterdam", "Anvers"), ("Liège", "Luxembourg")]
-    durees = [120, 90, 100, 130, 60, 110]  # en minutes
-
-    for chauffeur in chauffeurs:
-        current_date = base_date
-        for day in range(5):
-            minutes_cum = 0
-            for i, duree in enumerate(durees):
-                if minutes_cum + duree > 510:  # limite 8h30 = 510 minutes
-                    break
-                trajet_uuid = str(uuid.uuid4())
-                lieu_ret, lieu_dep = lieux[i % len(lieux)]
-                created_at = datetime.now()
-                data.append({
-                    "Uuid": trajet_uuid,
-                    "DateTrajet": current_date,
-                    "VehiculeId": 100 + chauffeur,
-                    "ChauffeurId": chauffeur,
-                    "LieuRetrait": lieu_ret,
-                    "LieuDepot": lieu_dep,
-                    "DistanceEstimee": duree * 1.2,
-                    "DureeEstimee": duree,
-                    "DureeReelle": duree,
-                    "Latitude": 50.0 + day * 0.1,
-                    "Longitude": 4.0 + day * 0.1,
-                    "CreatedAt": created_at
-                })
-                minutes_cum += duree
-            current_date += timedelta(days=1)
-
-    df = pd.DataFrame(data)
+# --- Récupération des véhicules ---
+def get_vehicule_info(engine):
+    query = text("""
+        SELECT v.Id as VehiculeId,
+               v.IdDriver as ChauffeurId,
+               a.DateAchatq
+        FROM [fleet_management].[dbo].[Vehicules] v
+        JOIN [fleet_management].[dbo].[AchatsVehicules] a ON v.Id = a.VehiculeId
+        WHERE v.IdDriver IS NOT NULL AND a.DateAchatq IS NOT NULL
+    """)
+    df = pd.read_sql(query, engine)
+    logger.info(f"Véhicules trouvés : {len(df)}")
+    df['DateAchatq'] = pd.to_datetime(df['DateAchatq']).dt.date
     return df
 
+# --- Précharger les durées existantes ---
+def preload_durees_existantes(engine, start_date, end_date):
+    query = text("""
+        SELECT DateTrajet, ChauffeurId, SUM(DureeReelle) AS DureeTotale
+        FROM [fleet_management].[dbo].[PlanningsTrajet]
+        WHERE DateTrajet BETWEEN :start_date AND :end_date
+        GROUP BY DateTrajet, ChauffeurId
+    """)
+    df = pd.read_sql(query, engine, params={"start_date": start_date, "end_date": end_date})
+    durees = {(row["DateTrajet"], row["ChauffeurId"]): row["DureeTotale"] for _, row in df.iterrows()}
+    return durees
 
-def filter_trajets_by_max_duration(df, max_minutes=510):
-    """
-    Filtre le DataFrame pour ne garder que des trajets cumulés <= max_minutes
-    par chauffeur et par jour.
-    """
-    df = df.sort_values(by=["ChauffeurId", "DateTrajet"]).reset_index(drop=True)
-    cum_durations = {}
-    keep_indices = []
+# --- Génération des trajets ---
+def generate_trajets(vehicule_info_df, start_date, end_date, durees_existantes):
+    lieux = [
+        {"nom": "Amsterdam", "lat": 52.3676, "lon": 4.9041},
+        {"nom": "Bruxelles", "lat": 50.8503, "lon": 4.3517},
+        {"nom": "Rotterdam", "lat": 51.9225, "lon": 4.47917},
+        {"nom": "Luxembourg", "lat": 49.6117, "lon": 6.1319},
+        {"nom": "Anvers", "lat": 51.2194, "lon": 4.4025},
+        {"nom": "Liège", "lat": 50.6326, "lon": 5.5797}
+    ]
 
-    for idx, row in df.iterrows():
-        key = (row["ChauffeurId"], row["DateTrajet"])
-        current_cum = cum_durations.get(key, 0)
-        if current_cum + row["DureeEstimee"] <= max_minutes:
-            keep_indices.append(idx)
-            cum_durations[key] = current_cum + row["DureeEstimee"]
-        else:
-            logger.debug(f"Trajet ignoré: Chauffeur {row['ChauffeurId']} date {row['DateTrajet']} dépasse {max_minutes} minutes")
+    trajets = []
+    current_date = start_date
 
-    filtered_df = df.loc[keep_indices].reset_index(drop=True)
-    return filtered_df
+    while current_date <= end_date:
+        if current_date.weekday() == 6:  # dimanche
+            current_date += timedelta(days=1)
+            continue
 
+        for _, row in vehicule_info_df.iterrows():
+            vehicule_id = row["VehiculeId"]
+            chauffeur_id = row["ChauffeurId"]
+            date_achat = row["DateAchatq"]
+            date_min = date_achat + timedelta(days=3)
 
-def insert_bulk_batches(engine, df, table_name, batch_size=1000):
-    """
-    Insert en lots dans la table SQL Server avec rollback si erreur.
-    """
-    insert_sql = f"""
-    INSERT INTO dbo.{table_name}
-    (Uuid, DateTrajet, VehiculeId, ChauffeurId, LieuRetrait, LieuDepot, DistanceEstimee,
-     DureeEstimee, DureeReelle, Latitude, Longitude, CreatedAt)
-    VALUES (:Uuid, :DateTrajet, :VehiculeId, :ChauffeurId, :LieuRetrait, :LieuDepot, :DistanceEstimee,
-            :DureeEstimee, :DureeReelle, :Latitude, :Longitude, :CreatedAt)
-    """
+            if current_date < date_min:
+                continue
+
+            key = (current_date, chauffeur_id)
+            duree_cumulee = durees_existantes.get(key, 0)
+
+            nb_trajets_jour = random.randint(25, 40)
+            for _ in range(nb_trajets_jour):
+                max_duree_possible = 510 - duree_cumulee
+                if max_duree_possible < 60:
+                    break
+
+                lieu_retrait = random.choice(lieux)
+                lieu_depot = random.choice(lieux)
+                while lieu_depot == lieu_retrait:
+                    lieu_depot = random.choice(lieux)
+
+                distance = round(random.uniform(200, 700), 2)
+                duree = random.randint(60, min(480, max_duree_possible))
+                duree_cumulee += duree
+                durees_existantes[key] = duree_cumulee
+
+                trajets.append({
+                    "Uuid": str(uuid.uuid4()),
+                    "DateTrajet": current_date,
+                    "VehiculeId": vehicule_id,
+                    "ChauffeurId": chauffeur_id,
+                    "LieuRetrait": lieu_retrait["nom"],
+                    "LieuDepot": lieu_depot["nom"],
+                    "DistanceEstimee": distance,
+                    "DureeEstimee": duree,
+                    "DureeReelle": duree,
+                    "Latitude": lieu_retrait["lat"],
+                    "Longitude": lieu_retrait["lon"],
+                    "CreatedAt": datetime.now()
+                })
+
+        current_date += timedelta(days=1)
+
+    logger.info(f"Total trajets générés : {len(trajets)}")
+    return pd.DataFrame(trajets)
+
+# --- Insertion en base ---
+def insert_trajets(trajets_df, engine, batch_size=500):
+    if trajets_df.empty:
+        logger.info("Aucun trajet à insérer.")
+        return
+
+    columns = [
+        "Uuid", "DateTrajet", "VehiculeId", "ChauffeurId",
+        "LieuRetrait", "LieuDepot", "DistanceEstimee",
+        "DureeEstimee", "DureeReelle", "Latitude", "Longitude", "CreatedAt"
+    ]
+
+    with engine.begin() as conn:
+        for i in range(0, len(trajets_df), batch_size):
+            batch_df = trajets_df.iloc[i:i + batch_size]
+            values = batch_df[columns].to_dict(orient="records")
+            sql = text(f"""
+                INSERT INTO [fleet_management].[dbo].[PlanningsTrajet]
+                (Uuid, DateTrajet, VehiculeId, ChauffeurId, LieuRetrait, LieuDepot,
+                 DistanceEstimee, DureeEstimee, DureeReelle, Latitude, Longitude, CreatedAt)
+                VALUES
+                (:Uuid, :DateTrajet, :VehiculeId, :ChauffeurId, :LieuRetrait, :LieuDepot,
+                 :DistanceEstimee, :DureeEstimee, :DureeReelle, :Latitude, :Longitude, :CreatedAt)
+            """)
+            conn.execute(sql, values)
+            logger.info(f"Insertion batch {i // batch_size + 1} réussie.")
+
+# --- Script principal ---
+def main():
+    start_date = date(2025, 7, 1)
+    end_date = date(2025, 8, 9)
+
     try:
-        with engine.begin() as conn:  # begin transaction, auto rollback on exception
-            for start in range(0, len(df), batch_size):
-                batch_df = df.iloc[start:start + batch_size]
-                params = batch_df.to_dict(orient="records")
-                conn.execute(text(insert_sql), params)
-                logger.info(f"Batch inséré: {len(batch_df)} trajets (de {start} à {start + len(batch_df) - 1})")
+        vehicule_info_df = get_vehicule_info(engine)
+        durees_existantes = preload_durees_existantes(engine, start_date, end_date)
+        trajets_df = generate_trajets(vehicule_info_df, start_date, end_date, durees_existantes)
+        insert_trajets(trajets_df, engine)
+        logger.info("Script terminé avec succès.")
     except Exception as e:
-        logger.error(f"Erreur lors de l’insertion en base: {e}")
-        raise
-
+        logger.error(f"Erreur dans le script principal: {e}", exc_info=True)
 
 if __name__ == "__main__":
-    logger.info("Début génération des trajets")
-    trajets_df = generate_sample_trajets()
-    logger.info(f"Trajets générés: {len(trajets_df)}")
-
-    logger.info("Filtrage des trajets pour respecter la limite de 8h30 par chauffeur/jour")
-    trajets_filtered = filter_trajets_by_max_duration(trajets_df)
-    logger.info(f"Trajets après filtrage: {len(trajets_filtered)}")
-
-    logger.info("Insertion des trajets en base...")
-    insert_bulk_batches(engine, trajets_filtered, "PlanningsTrajet")
-
-    logger.info("Traitement terminé avec succès")
+    main()
