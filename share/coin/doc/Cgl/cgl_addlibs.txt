@@ -1,0 +1,1 @@
+-L/home/sergembela/anaconda3/envs/api_fleet_management/lib -lCgl -lOsiClp -lClpSolver -lClp -lOsi -lCoinUtils -lbz2 -lz -llapack -lblas -lm

@@ -1,0 +1,25 @@
+version: '3'
+services:
+  osrm_lux:
+    image: osrm/osrm-backend
+    command: osrm-routed --algorithm mld /data/luxembourg-latest.osm.pbf
+    volumes:
+      - ./data/luxembourg-latest.osm.pbf:/data/luxembourg-latest.osm.pbf:ro
+    ports:
+      - "5000:5000"
+
+  osrm_belgium:
+    image: osrm/osrm-backend
+    command: osrm-routed --algorithm mld /data/belgium-latest.osm.pbf
+    volumes:
+      - ./data/belgium-latest.osm.pbf:/data/belgium-latest.osm.pbf:ro
+    ports:
+      - "5001:5000"
+
+  osrm_netherlands:
+    image: osrm/osrm-backend
+    command: osrm-routed --algorithm mld /data/netherlands-latest.osm.pbf
+    volumes:
+      - ./data/netherlands-latest.osm.pbf:/data/netherlands-latest.osm.pbf:ro
+    ports:
+      - "5002:5000"
